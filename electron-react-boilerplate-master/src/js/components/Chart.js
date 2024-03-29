@@ -63,19 +63,19 @@ const Chart = ({ chartId }) => {
   }, [dispatch, chartId, symbol]);
 
   useEffect(() => {
-  
     const candlestickSeries = candlestickSeriesRef.current;
     if (candlestickSeries && klineData && klineData.data) {
       candlestickSeries.setData(klineData.data);
   
+      let lastReceivedCandle = null;
+  
       if (klineWSData && klineWSData[symbol] && klineWSData[symbol].data) {
-        const existingData = klineData.data;
         const newData = klineWSData[symbol].data[0];
   
         if (newData) {
-          const lastExistingBar = existingData[existingData.length - 1];
-  
-          if (lastExistingBar && lastExistingBar.time === newData.time) {
+          if (!lastReceivedCandle || newData.open !== lastReceivedCandle.open) {
+            console.log('Adding new bar:', newData);
+            lastReceivedCandle = newData;
             candlestickSeries.update({
               time: newData.time,
               open: newData.open,
@@ -84,14 +84,19 @@ const Chart = ({ chartId }) => {
               close: newData.close,
             });
           } else {
-            console.log('Adding new bar:', newData);
-            candlestickSeries.update({
-              time: newData.time,
-              open: newData.open,
-              high: newData.high,
-              low: newData.low,
+            console.log('Updating last bar:', newData);
+            lastReceivedCandle = {
+              ...lastReceivedCandle,
+              high: Math.max(lastReceivedCandle.high, newData.high),
+              low: Math.min(lastReceivedCandle.low, newData.low),
               close: newData.close,
-            });
+            };
+            const existingData = candlestickSeries.getData();
+            const lastExistingBar = existingData[existingData.length - 1];
+            if (lastExistingBar && lastExistingBar.time === lastReceivedCandle.time) {
+              existingData[existingData.length - 1] = lastReceivedCandle;
+              candlestickSeries.setData(existingData);
+            }
           }
   
           const chartInstance = chartInstanceRef.current;
@@ -111,6 +116,7 @@ const Chart = ({ chartId }) => {
       }
     }
   }, [klineData, klineWSData, symbol]);
+  
 
   useEffect(() => {
     const handleSearchInput = (event) => {
@@ -159,6 +165,7 @@ const Chart = ({ chartId }) => {
 
         chartRef.current = widget;
         chartContainerRef.current = document.getElementById(`chartContainer-${chartId}`);
+        
         const chart = createChart(chartContainerRef.current, {
           width: chartContainerRef.current.clientWidth,
           height: chartContainerRef.current.clientHeight,
@@ -175,7 +182,18 @@ const Chart = ({ chartId }) => {
             mouseWheel: true,
             pressedMouseMove: true,
           },
+          timeScale: {
+            timeVisible: true,
+            secondsVisible: false,
+            tickMarkFormatter: (time) => {
+              const date = new Date(time * 1000);
+              const hours = date.getHours().toString().padStart(2, '0');
+              const minutes = date.getMinutes().toString().padStart(2, '0');
+              return `${hours}:${minutes}`;
+            },
+          },
         });
+
         chartInstanceRef.current = chart;
 
         const candlestickSeries = chart.addCandlestickSeries();
