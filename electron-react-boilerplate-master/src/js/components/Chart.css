@@ -1,0 +1,26 @@
+/* Chart.css */
+.chart-container {
+    margin: 10px;
+    padding: 20px;
+    border: 2px solid #007bff; /* Blue border */
+    border-radius: 8px;
+    background-color: #f9f9f9; /* Light grey background */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Simple box shadow */
+    text-align: center;
+  }
+  
+  .chart-button {
+    padding: 10px 20px;
+    margin-top: 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: #dc3545; /* Bootstrap's danger color */
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  
+  .chart-button:hover {
+    background-color: #c82333; /* A darker shade for hover state */
+  }
+  
