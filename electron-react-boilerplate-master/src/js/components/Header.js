@@ -28,7 +28,7 @@ const Header = () => {
         </header>
         <SearchProvider>
         {chartIds.map(chartId => (
-          <Chart key={chartId} chartId={chartId} symbol=""/>
+          <Chart key={chartId} chartId={chartId} symbol="DGBUSDT"/>
         ))}
         </SearchProvider>
         {showNews && <News containerId="news" onRemove={handleToggleNews} />}

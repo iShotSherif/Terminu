@@ -6,10 +6,10 @@ import { fetchCandlestickDataAsync } from '../actions/klineActions';
 import { connectWebSocket, disconnectWebSocket } from '../actions/klineWsActions';
 import { createChart } from 'lightweight-charts';
 
-const Chart = ({ chartId, symbol }) => {
+const Chart = ({ chartId }) => {
   const dispatch = useDispatch();
   const klineData = useSelector(state => state.klineData[chartId]);
-  const klineWSData = useSelector(state => state.klineWS[symbol]);
+  const klineWSData = useSelector(state => state.klineWS);
   const grid = useGrid();
   const chartRef = useRef(null);
   const chartContainerRef = useRef(null);
@@ -17,7 +17,8 @@ const Chart = ({ chartId, symbol }) => {
   const candlestickSeriesRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-
+  const tickers = useSelector(state => state.tickers.tickers);
+  const [symbol, setSymbol] = useState('')
   const filterData = useCallback((searchTerm) => {
     if (!tickers.list || !Array.isArray(tickers.list)) return [];
 
@@ -40,19 +41,15 @@ const Chart = ({ chartId, symbol }) => {
     });
   }, [handleSymbolClick]);
 
-  const handleSymbolClick = useCallback((newSymbol) => {
-    dispatch(fetchCandlestickDataAsync(newSymbol, chartId));
-    dispatch(disconnectWebSocket());
-    dispatch(connectWebSocket(newSymbol));
-
-    const searchInput = document.getElementById(`searchInput-${chartId}`);
-    searchInput.value = newSymbol;
-
-    // Reset the existing candlestick series
-    if (candlestickSeriesRef.current) {
-      candlestickSeriesRef.current.setData([]);
-    }
-  }, [dispatch, chartId]);
+  const handleSymbolClick = useCallback(
+    (newSymbol) => {
+      setSymbol(newSymbol); // Update the symbol state
+      dispatch(fetchCandlestickDataAsync(newSymbol, chartId));
+      dispatch(disconnectWebSocket());
+      dispatch(connectWebSocket(newSymbol));
+    },
+    [dispatch, chartId]
+  );
 
   useEffect(() => {
     if (chartId && symbol) {
@@ -66,14 +63,54 @@ const Chart = ({ chartId, symbol }) => {
   }, [dispatch, chartId, symbol]);
 
   useEffect(() => {
-    console.log('klineData changed:', klineData);
-
+  
     const candlestickSeries = candlestickSeriesRef.current;
     if (candlestickSeries && klineData && klineData.data) {
-      console.log('Setting initial data:', klineData.data);
       candlestickSeries.setData(klineData.data);
+  
+      if (klineWSData && klineWSData[symbol] && klineWSData[symbol].data) {
+        const existingData = klineData.data;
+        const newData = klineWSData[symbol].data[0];
+  
+        if (newData) {
+          const lastExistingBar = existingData[existingData.length - 1];
+  
+          if (lastExistingBar && lastExistingBar.time === newData.time) {
+            candlestickSeries.update({
+              time: newData.time,
+              open: newData.open,
+              high: newData.high,
+              low: newData.low,
+              close: newData.close,
+            });
+          } else {
+            console.log('Adding new bar:', newData);
+            candlestickSeries.update({
+              time: newData.time,
+              open: newData.open,
+              high: newData.high,
+              low: newData.low,
+              close: newData.close,
+            });
+          }
+  
+          const chartInstance = chartInstanceRef.current;
+          if (chartInstance) {
+            const priceScale = chartInstance.priceScale();
+            priceScale.applyOptions({
+              autoScale: true,
+              scaleMargins: {
+                top: 0.1,
+                bottom: 0.1,
+              },
+            });
+          }
+        }
+      } else {
+        candlestickSeries.setData([]);
+      }
     }
-  }, [klineData]);
+  }, [klineData, klineWSData, symbol]);
 
   useEffect(() => {
     const handleSearchInput = (event) => {
@@ -183,43 +220,6 @@ const Chart = ({ chartId, symbol }) => {
     renderSearchResults(searchResults, searchResultsElement);
   }, [chartId, searchResults, renderSearchResults]);
 
-  useEffect(() => {
-    console.log('klineWSData changed:', klineWSData);
-
-    const candlestickSeries = candlestickSeriesRef.current;
-    if (candlestickSeries && klineWSData && klineWSData.data) {
-      console.log('Received WebSocket data from Redux store:', klineWSData.data);
-
-      const newData = klineWSData.data;
-      console.log('Latest WebSocket data point:', newData);
-
-      if (newData) {
-        const existingData = candlestickSeries.getData();
-        const lastExistingBar = existingData[existingData.length - 1];
-
-        if (lastExistingBar && lastExistingBar.time === newData.time) {
-          console.log('Updating last bar:', newData);
-          candlestickSeries.update(newData);
-        } else {
-          console.log('Adding new bar:', newData);
-          candlestickSeries.update(newData);
-        }
-
-        const chartInstance = chartInstanceRef.current;
-        if (chartInstance) {
-          const priceScale = chartInstance.priceScale();
-          priceScale.applyOptions({
-            autoScale: true,
-            scaleMargins: {
-              top: 0.1,
-              bottom: 0.1,
-            },
-          });
-          chartInstance.timeScale().fitContent();
-        }
-      }
-    }
-  }, [klineWSData]);
 
   const handleRemoveChart = useCallback(() => {
     dispatch(removeChart(chartId));

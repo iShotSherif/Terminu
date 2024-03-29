@@ -2,7 +2,7 @@
 
 import { UPDATE_KLINE_DATA } from '../actions/klineWsActions';
 
-const initialState = [];
+const initialState = {};
 
 const klineWsReducer = (state = initialState, action) => {
   switch (action.type) {

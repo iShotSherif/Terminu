@@ -1,7 +1,7 @@
 // KlineAPI.js
 
 export const fetchCandlestickData = async (symbol) => {
-    const url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=60`;
+    const url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=1`;
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
